@@ -3,7 +3,7 @@
 DEFAULT_WORDLIST="/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt"
 
 show_help() {
-    echo "Usage: vfuzzer <DOMAIN> [IP] [http|https] [WORDLIST] <FS> [-t THREADS] [-o OUTFILE] [-p DELAY] [-k] [-r] [--dns]"
+    echo "Usage: vfuzzer <DOMAIN> [IP] [http|https] [WORDLIST] <FS> [-P PORT] [-t THREADS] [-o OUTFILE] [-p DELAY] [-k] [-r] [--dns]"
     echo "   -h, --help  Display this help and exit"
     echo
     echo "  DOMAIN      Target domain (required)"
@@ -11,6 +11,7 @@ show_help() {
     echo "  http|https  Protocol shorthand — defaults to http"
     echo "  WORDLIST    Path to wordlist (default: subdomains-top1million-110000.txt)"
     echo "  FS          Filter size (optional, always last positional — omit to auto-calibrate)"
+    echo "  -P PORT     Target port (e.g. -P 8080)"
     echo "  -t THREADS  Number of threads (default: ffuf default 40)"
     echo "  -o OUTFILE  Save results to file (JSON format)"
     echo "  -p DELAY    Delay between requests in seconds (e.g. 0.1) — useful against rate-limited targets"
@@ -23,6 +24,7 @@ show_help() {
     echo "  vfuzzer example.com 10.10.10.5 1234"
     echo "  vfuzzer example.com 10.10.10.5 https 1234 -k -t 20 -o results.json"
     echo "  vfuzzer example.com 10.10.10.5 https -k"
+    echo "  vfuzzer example.com 10.10.10.5 -P 8080 1234"
     echo "  vfuzzer example.com --dns 1234"
 }
 
@@ -35,12 +37,14 @@ fi
 THREADS=""
 OUTFILE=""
 DELAY=""
+PORT=""
 INSECURE=false
 FOLLOW_REDIRECTS=false
 DNS_MODE=false
 positional=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        -P) PORT="$2"; shift 2 ;;
         -t) THREADS="$2"; shift 2 ;;
         -o) OUTFILE="$2"; shift 2 ;;
         -p) DELAY="$2"; shift 2 ;;
@@ -85,11 +89,11 @@ for arg in "${middle[@]}"; do
 done
 
 TARGET="${TARGET:-$DOMAIN}"
-URL="${PROTO}://${TARGET}"
+URL="${PROTO}://${TARGET}${PORT:+:$PORT}"
 
 echo "[*] Domain:   $DOMAIN"
 echo "[*] Mode:     $($DNS_MODE && echo 'subdomain (--dns)' || echo 'vhost (Host header)')"
-$DNS_MODE || echo "[*] Target:   $TARGET"
+$DNS_MODE || echo "[*] Target:   $TARGET${PORT:+:$PORT}"
 echo "[*] Wordlist: $WORDLIST"
 [[ -n "$FS" ]] && echo "[*] FS:       $FS"
 [[ -n "$THREADS" ]] && echo "[*] Threads:  $THREADS"
@@ -100,7 +104,7 @@ $FOLLOW_REDIRECTS && echo "[*] Redirects: follow (-r)"
 echo
 
 if $DNS_MODE; then
-    FFUF_CMD=(ffuf -H "User-Agent: PENTEST" -c -w "$WORDLIST" -u "${PROTO}://FUZZ.${DOMAIN}" -mc all)
+    FFUF_CMD=(ffuf -H "User-Agent: PENTEST" -c -w "$WORDLIST" -u "${PROTO}://FUZZ.${DOMAIN}${PORT:+:$PORT}" -mc all)
 else
     FFUF_CMD=(ffuf -H "Host: FUZZ.$DOMAIN" -H "User-Agent: PENTEST" -c -w "$WORDLIST" -u "$URL" -mc all)
 fi
