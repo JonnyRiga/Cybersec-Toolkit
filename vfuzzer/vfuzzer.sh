@@ -3,7 +3,7 @@
 DEFAULT_WORDLIST="/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt"
 
 show_help() {
-    echo "Usage: vfuzzer <DOMAIN> [IP] [http|https] [WORDLIST] <FS> [-P PORT] [-t THREADS] [-o OUTFILE] [-p DELAY] [-k] [-r] [--dns]"
+    echo "Usage: vfuzzer <DOMAIN> [IP] [http|https] [WORDLIST] <FS> [-t THREADS] [-P PORT] [-o OUTFILE] [-p DELAY] [-k] [-r] [--dns]"
     echo "   -h, --help  Display this help and exit"
     echo
     echo "  DOMAIN      Target domain (required)"
@@ -25,6 +25,7 @@ show_help() {
     echo "  vfuzzer example.com 10.10.10.5 https 1234 -k -t 20 -o results.json"
     echo "  vfuzzer example.com 10.10.10.5 https -k"
     echo "  vfuzzer example.com 10.10.10.5 -P 8080 1234"
+    echo "  vfuzzer example.com --dns -P 8080 1234"
     echo "  vfuzzer example.com --dns 1234"
 }
 
@@ -44,7 +45,13 @@ DNS_MODE=false
 positional=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -P) PORT="$2"; shift 2 ;;
+        -P)
+            if [[ -z "$2" ]]; then
+                echo "Error: -P requires a PORT argument."
+                exit 1
+            fi
+            PORT="$2"; shift 2 ;;
+
         -t) THREADS="$2"; shift 2 ;;
         -o) OUTFILE="$2"; shift 2 ;;
         -p) DELAY="$2"; shift 2 ;;
@@ -55,6 +62,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 set -- "${positional[@]}"
+
+if [[ -n "$PORT" ]]; then
+    if ! [[ "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
+        echo "Error: -P PORT must be a number between 1 and 65535."
+        exit 1
+    fi
+fi
 
 if [ "$#" -lt 1 ]; then
     echo "Error: DOMAIN is required."
@@ -94,6 +108,7 @@ URL="${PROTO}://${TARGET}${PORT:+:$PORT}"
 echo "[*] Domain:   $DOMAIN"
 echo "[*] Mode:     $($DNS_MODE && echo 'subdomain (--dns)' || echo 'vhost (Host header)')"
 $DNS_MODE || echo "[*] Target:   $TARGET${PORT:+:$PORT}"
+[[ -n "$PORT" ]] && echo "[*] Port:     $PORT"
 echo "[*] Wordlist: $WORDLIST"
 [[ -n "$FS" ]] && echo "[*] FS:       $FS"
 [[ -n "$THREADS" ]] && echo "[*] Threads:  $THREADS"

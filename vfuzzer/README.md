@@ -10,7 +10,7 @@ Virtual host and subdomain fuzzer built on `ffuf`. Supports vhost mode (Host hea
 ## Usage
 
 ```
-vfuzzer <DOMAIN> [IP] [http|https] [WORDLIST] <FS> [-P PORT] [-t THREADS] [-o OUTFILE] [-p DELAY] [-k] [-r] [--dns]
+vfuzzer <DOMAIN> [IP] [http|https] [WORDLIST] <FS> [-t THREADS] [-P PORT] [-o OUTFILE] [-p DELAY] [-k] [-r] [--dns]
 
   DOMAIN      Target domain (required)
   IP          Target IP to connect to — defaults to DOMAIN (vhost mode only)
@@ -44,8 +44,11 @@ vfuzzer example.com 10.10.10.5 https 1234 -k -t 20 -o results.json
 # Rate-limited target — add delay between requests
 vfuzzer example.com 10.10.10.5 1234 -p 0.1
 
-# Non-standard port
+# Non-standard port (vhost mode)
 vfuzzer example.com 10.10.10.5 -P 8080 1234
+
+# Non-standard port (subdomain/DNS mode)
+vfuzzer example.com --dns -P 8080 1234
 
 # Follow redirects (catch vhosts that respond with 301/302)
 vfuzzer example.com 10.10.10.5 1234 -r
